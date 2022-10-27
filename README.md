@@ -77,7 +77,7 @@ void savestate()
         if (scheduler.has_event(i))
         {
             events[i].enabled = true;
-            events[i].cycles = scheduler.get_event_cycles(i);
+            events[i].cycles = scheduler.get_event_cycles_absolute(i);
         }
     }
 
