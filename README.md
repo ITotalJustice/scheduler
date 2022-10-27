@@ -1,5 +1,8 @@
 # scheduler
-simple-ish, fast-ish, generic-ish scheduler implementation (for emulators)
+simple-ish, fast-ish, generic-ish scheduler implementation (for emulators).
+
+requires `C++20` as everything is `constexpr`, but the `constexpr` keyword can be removed, which drops
+the required version to `C++14`.
 
 ## EXAMPLE: how to keep track of delta
 
@@ -106,6 +109,10 @@ void loadstate()
 }
 ```
 
-## credit
+## projects using scheduler.hpp
+
+https://github.com/ITotalJustice/notorious_beeg
+
+## credits
 
 implementation is based on discussion <https://github.com/dolphin-emu/dolphin/pull/4168>
