@@ -33,8 +33,11 @@ struct Event {
 
 struct Scheduler {
 public:
+    // calls reset()
+    Scheduler() { reset(); }
+
     // resets queue and cycles, adds reset event, optional custom callback
-    constexpr void reset(s32 starting_cycles, Callback reset_cb)
+    constexpr void reset(s32 starting_cycles = 0, Callback reset_cb = nullptr)
     {
         queue.clear();
         cycles = std::min(starting_cycles, TIMEOUT_VALUE);
