@@ -105,3 +105,7 @@ void loadstate()
     }
 }
 ```
+
+## credit
+
+implementation is based on discussion <https://github.com/dolphin-emu/dolphin/pull/4168>
