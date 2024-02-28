@@ -1,118 +1,79 @@
 # scheduler
-simple-ish, fast-ish, generic-ish scheduler implementation (for emulators).
 
-requires `C++20` as everything is `constexpr`, but the `constexpr` keyword can be removed, which drops
-the required version to `C++14`.
+simple, fast and generic scheduler implementation for emulators, writtin in c89.
 
-## EXAMPLE: how to keep track of delta
+## how to add this to your emulator
 
-```c++
-struct DeltaManager
-{
-    s32 deltas[ID::END]{};
-
-    constexpr void reset()
-    {
-        for (auto& delta : deltas) { delta = 0; }
-    }
-
-    constexpr void add(s32 id, s32 delta)
-    {
-        deltas[id] = delta;
-    }
-
-    constexpr void remove(s32 id)
-    {
-        deltas[id] = 0;
-    }
-
-    [[nodiscard]] constexpr auto get(s32 id, s32 time) -> s32
-    {
-        return time + deltas[id];
-    }
-};
-
-DeltaManager deltas;
-
-void event_callback(void* user, s32 id, s32 late)
-{
-    deltas.add(id, late);
-    // ... do stuff here ...
-    scheduler.add(id, deltas.get(id, 100), event_callback, user);
-}
-
-void on_disable_apu()
-{
-    deltas.remove(ID::APU);
-    scheduler.remove(ID::APU);
-}
-```
+1. copy the 2 files from `src/` to your project (scheduler.c and scheduler.h)
+2. add any events you need to `enum SchedulerID`.
+3. call `scheduler_add()` to add events, `scheduler_tick()` to tick the scheduler, `scheduler_should_fire()` to check if an event is ready to fire, `scheduler_fire()` to fire all expired.
+4. read the comments in the header file for futher documentation.
 
 ## EXAMPLE: how to implement save/load state
 
-```c++
-enum ID {
-    PPU,
-    APU,
-    TIMER,
-    DMA,
-    MAX,
+```c
+struct StateEventEntry {
+    int32_t enabled; // don't use bool here because padding!
+    int32_t cycles;
 };
 
-static_assert(ID::MAX < scheduler::RESERVED_ID);
-
-struct EventEntry {
-    std::int32_t enabled; // don't use bool here because padding!
-    std::int32_t time;
+struct StateTiming {
+    int32_t scheduler_cycles;
+    struct StateEventEntry events[SchedulerID_MAX];
 };
 
-void savestate()
-{
-    std::array<EventEntry, ID::MAX> events{};
-    s32 scheduler_cycles = scheduler.get_ticks();
+void savestate(void) {
+    struct StateTiming state_timing;
+    state_timing.scheduler_cycles = scheduler_get_ticks(&s);
 
-    for (std::size_t i = 0; i < events.size(); i++)
-    {
+    for (int i = 0; i < SchedulerID_MAX; i++) {
+        struct StateEventEntry* e = &state_timing.events[i];
         // see if we have this event in queue, if we do, it's enabled
-        if (scheduler.has_event(i))
-        {
-            events[i].enabled = true;
-            events[i].cycles = scheduler.get_event_cycles_absolute(i);
+        if (scheduler_has_event(&s, i)) {
+            e->enabled = 1;
+            e->cycles = scheduler_get_event_cycles_absolute(&s, i);
+        } else {
+            e->enabled = 0;
         }
     }
 
     // write state data
-    write(events.data(), events.size());
-    write(&scheduler_cycles, sizeof(scheduler_cycles));
+    write(&state_timing, sizeof(state_timing));
 }
 
-void loadstate()
-{
-    std::array<EventEntry, ID::MAX> events;
-    s32 scheduler_cycles;
+void loadstate(void) {
+    struct StateTiming state_timing = {0};
 
     // read state data
-    read(&scheduler_cycles, sizeof(scheduler_cycles));
-    read(events.data(), events.size());
+    read(&state_timing, sizeof(state_timing));
 
     // need to reset scheduler to remove all events and reset
     // to the saved time.
-    scheduler.reset(scheduler_cycles);
+    scheduler_reset(&s, state_timing.scheduler_cycles, NULL, NULL);
 
-    for (std::size_t i = 0; i < events.size(); i++)
-    {
-        if (events[i].enabled)
-        {
-            scheduler.add_absolute(i, events[i].cycles, callback);
+    for (int i = 0; i < SchedulerID_MAX; i++) {
+        const struct StateEventEntry* e = &state_timing.events[i];
+        if (e->enabled) {
+            switch (i) {
+                case SchedulerID_APU:
+                    scheduler_add_absolute(&s, i, e->cycles, on_apu_event, user);
+                    break;
+
+                case SchedulerID_PPU:
+                    scheduler_add_absolute(&s, i, e->cycles, on_ppu_event, user);
+                    break;
+
+                case SchedulerID_TIMER:
+                    scheduler_add_absolute(&s, i, e->cycles, on_timer_event, user);
+                    break;
+            }
         }
     }
 }
 ```
 
-## projects using scheduler.hpp
+## projects using scheduler
 
-https://github.com/ITotalJustice/notorious_beeg
-
-## credits
-
-implementation is based on discussion <https://github.com/dolphin-emu/dolphin/pull/4168>
+- https://github.com/ITotalJustice/notorious_beeg (not upstream)
+- https://github.com/ITotalJustice/TotalSMS (not upstream)
+- https://github.com/ITotalJustice/TotalGB (not upstream)

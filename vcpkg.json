@@ -1,0 +1,7 @@
+{
+    "name": "scheduler",
+    "version-string": "1.0.0",
+    "homepage": "https://github.com/ITotalJustice/scheduler",
+    "description": "simple, fast and generic scheduler implementation for emulators, writtin in c89.",
+    "license": "Zlib"
+  }
